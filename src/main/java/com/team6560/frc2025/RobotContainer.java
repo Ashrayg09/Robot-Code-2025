@@ -6,6 +6,7 @@ import com.team6560.frc2025.Constants.WristConstants;
 import com.team6560.frc2025.commands.BallGrabberCommand;
 import com.team6560.frc2025.commands.ClimbCommand;
 import com.team6560.frc2025.commands.ElevatorCommand;
+import com.team6560.frc2025.commands.ElevatorResetPos;
 import com.team6560.frc2025.commands.PipeGrabberCommand;
 import com.team6560.frc2025.commands.WristCommand;
 import com.team6560.frc2025.commands.automations.CoralScoreCommandFactory;
@@ -191,6 +192,7 @@ public class RobotContainer {
 
     driverXbox.start().onTrue((Commands.runOnce(drivebase::zeroNoAprilTagsGyro)));
     driverXbox.a().onTrue((Commands.runOnce(() -> drivebase.updateOdometryWithVision("limelight-right"))));
+    driverXbox.b().onTrue(new ElevatorResetPos(elevator));
     driverXbox.y().onTrue(Commands.runOnce(() -> CommandScheduler.getInstance().cancelAll()));
   }
 
