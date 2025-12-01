@@ -190,11 +190,16 @@ public class RobotContainer {
     
     drivebase.setDefaultCommand(driveFieldOrientedAnglularVelocity);
 
+    // -------- DRIVER 1 CONTROLS (CommandXboxController driverXbox) --------
     driverXbox.start().onTrue((Commands.runOnce(drivebase::zeroNoAprilTagsGyro)));
     driverXbox.a().onTrue((Commands.runOnce(() -> drivebase.updateOdometryWithVision("limelight-right"))));
-    driverXbox.b().onTrue(new ElevatorResetPos(elevator));
     driverXbox.y().onTrue(Commands.runOnce(() -> CommandScheduler.getInstance().cancelAll()));
-  }
+
+    // -------- DRIVER 2 CONTROLS (SECOND CONTROLLER) --------
+    new edu.wpi.first.wpilibj2.command.button.JoystickButton(
+        secondXbox, XboxController.Button.kB.value)
+        .onTrue(new ElevatorResetPos(elevator)); // now assigned to Driver 2
+}
 
   public void elevL4BeginTele() { // values for auto (don't touch!)
     elevator.setElevatorPosition(17.65);
