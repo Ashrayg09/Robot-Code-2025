@@ -16,9 +16,13 @@ public class ElevatorResetPos extends Command {
     private TrapezoidProfile.State goalState;
     private Timer timer;
     
-    // Profile constraints (adjust these for speed)
-    private static final double MAX_VELOCITY = 3.0;      // rotations per second
-    private static final double MAX_ACCELERATION = 4.0;  // rotations per second²
+    // Profile constraints for downward movement (VERY slow and safe)
+    private static final double DOWN_MAX_VELOCITY = 0.5;      // Very slow speed going down
+    private static final double DOWN_MAX_ACCELERATION = 1.0;  // Very gentle acceleration going down
+    
+    // Profile constraints for upward movement
+    private static final double UP_MAX_VELOCITY = 3.0;      // rotations per second
+    private static final double UP_MAX_ACCELERATION = 4.0;  // rotations per second²
 
     public ElevatorResetPos(Elevator elevator) {
         this.elevator = elevator;
@@ -29,35 +33,49 @@ public class ElevatorResetPos extends Command {
     @Override
     public void initialize() {
         hasHitLimit = false;
+        
+        // Create trapezoid profile to move down slowly
+        TrapezoidProfile.Constraints downConstraints = new TrapezoidProfile.Constraints(
+            DOWN_MAX_VELOCITY,
+            DOWN_MAX_ACCELERATION
+        );
+        
+        initialState = new TrapezoidProfile.State(elevator.getElevatorHeight(), 0);
+        goalState = new TrapezoidProfile.State(-50, 0); // Move down to well below zero
+        
+        profile = new TrapezoidProfile(downConstraints);
         timer.restart();
-        // Move down to find limit switch
-        elevator.setElevatorPosition(-50);
     }
 
     @Override
     public void execute() {
-        // Check if we've hit the bottom limit switch
-        if (elevator.bottomLimitSwitchDown() && !hasHitLimit) {
-            hasHitLimit = true;
-            elevator.stopMotors();
-            // Reset encoder to 0 at this position
-            elevator.resetEncoderPos(0);
-            
-            // Create trapezoid profile from 0 to STOW
-            TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(
-                MAX_VELOCITY, 
-                MAX_ACCELERATION
+        if (!hasHitLimit) {
+            // Follow trapezoid profile going down
+            TrapezoidProfile.State setpoint = profile.calculate(
+                timer.get(),
+                initialState,
+                goalState
             );
+            elevator.setElevatorPosition(setpoint.position);
             
-            initialState = new TrapezoidProfile.State(0, 0);
-            goalState = new TrapezoidProfile.State(ElevatorConstants.ElevatorStates.STOW, 0);
-            
-            profile = new TrapezoidProfile(constraints);
-            timer.restart();
-        }
-        
-        // Follow the trapezoid profile after reset
-        if (hasHitLimit && profile != null) {
+            // Check if hit limit switch
+            if (elevator.bottomLimitSwitchDown()) {
+                hasHitLimit = true;
+                elevator.stopMotors();
+                elevator.resetEncoderPos(0);
+                
+                // Now create new profile for going up to STOW
+                TrapezoidProfile.Constraints upConstraints = new TrapezoidProfile.Constraints(
+                    UP_MAX_VELOCITY, 
+                    UP_MAX_ACCELERATION
+                );
+                initialState = new TrapezoidProfile.State(0, 0);
+                goalState = new TrapezoidProfile.State(ElevatorConstants.ElevatorStates.STOW, 0);
+                profile = new TrapezoidProfile(upConstraints);
+                timer.restart();
+            }
+        } else {
+            // Follow trapezoid profile going up to STOW
             TrapezoidProfile.State setpoint = profile.calculate(
                 timer.get(),
                 initialState,
@@ -81,6 +99,8 @@ public class ElevatorResetPos extends Command {
         // Hold at STOW position
         if (hasHitLimit && !interrupted) {
             elevator.setElevatorPosition(ElevatorConstants.ElevatorStates.STOW);
+        } else {
+            elevator.stopMotors();
         }
     }
 }
